@@ -1,15 +1,19 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from typing import Any, Callable
 
 import tomli
 
 
-def parse_args() -> Namespace:
+def parse_args(override_config: Callable[[dict[str, Any]], None] | None = None) -> Namespace:
     config_parser = ArgumentParser(add_help=False)
     _ = config_parser.add_argument('-c', '--config', type=Path, default='config.toml', help='config file')
     config_args, _ = config_parser.parse_known_args()
     with config_args.config.open('rb') as r:
         config = tomli.load(r)
+
+    if override_config:
+        override_config(config)
 
     webserver_config = config.get('webserver', {})
     parser = ArgumentParser()
@@ -22,6 +26,7 @@ def parse_args() -> Namespace:
     _ = parser.add_argument('-w', '--window', type=int, default=config.get('window', 100), help='Size of the data window')
     _ = parser.add_argument('-n', '--interval', type=float, default=config.get('interval', None), help='Interval between samples')
     _ = parser.add_argument('-t', '--ts-field', type=str, default=config.get('ts_field', 'timestamp'), help='Payload field carrying timestamp')
+    _ = parser.add_argument('--buffer-size', type=int, default=webserver_config.get('buffer_size', 0), help='Payload buffer size')
 
     # _ = parser.add_argument('rules_yml', metavar='RULES', type=Path, default=None, help='rules YAML file')
 

@@ -5,7 +5,7 @@ from .types import (
 
 
 class DummyPayloadEnhancer(PayloadEnhancer):
-    def __call__(self, payload: Payload, _: Window) -> Payload:
+    def __call__(self, payload: Payload, _window: Window | None, _meta: str | None = None) -> Payload:
         return payload
 
 class DummyPriorityPredictor(PriorityPredictor):

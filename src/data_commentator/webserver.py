@@ -2,10 +2,10 @@ import logging
 from pathlib import Path
 
 import trio
+import orjson
 from quart_trio import QuartTrio
 from quart_trio.wrappers.websocket import TrioWebsocket
 from quart import request, websocket
-from flask_orjson import OrjsonProvider
 from typing import Any
 
 from .types import Payload
@@ -15,13 +15,13 @@ class Webserver:
     def __init__(self, app: QuartTrio) -> None:
         self.app = app
         self.data_send_channel: trio.MemorySendChannel[Payload] | None = None
-        self.initial_data: dict[str, Any] | None = None
+        self.initial_data: Payload | None = None
         self.bind = "0.0.0.0"
         self.port = 5007
         self.connections: set[TrioWebsocket] = set()
         super().__init__()
 
-    def set_initial_data(self, initial_data: dict[str, Any]):
+    def set_initial_data(self, initial_data: Payload):
         self.initial_data = initial_data
 
     def setup(
@@ -50,21 +50,22 @@ class Webserver:
 logging.getLogger('hypercorn.access').disabled = True
 
 app = QuartTrio(__name__, static_url_path="")
-app.json = OrjsonProvider(app)
+
 
 @app.route('/data', methods=['POST'])
-async def data() -> dict[str, Any]:
-    payload: Payload = await request.get_json()
-    result: Payload
-    try:
-        if webserver.data_send_channel:
-            webserver.data_send_channel.send_nowait(payload)
-            result = {}
-        else:
-            result = { "warning": "not ready" }
-    except trio.WouldBlock:
-        result = { "warning": "ignored" }
-    return result
+async def data() -> tuple[bytes, Any]:
+    body: bytes = await request.get_data()
+    payloads: list[Payload] = [orjson.loads(line) for line in body.strip().split(b'\n')]
+    ignored_payloads = 0
+    if webserver.data_send_channel:
+        for payload in payloads:
+            try:
+                webserver.data_send_channel.send_nowait(payload)
+            except trio.WouldBlock:
+                ignored_payloads += 1
+    if ignored_payloads:
+        app.logger.warning(f'Ignored {ignored_payloads}/{len(payloads)} ({100 * ignored_payloads / len(payloads)}%)')
+    return b'', 204 # No Response
 
 @app.websocket('/ws')
 async def ws():
@@ -82,19 +83,3 @@ async def ws():
 
 
 webserver = Webserver(app)
-
-
-if __name__ == "__main__":
-    async def main():
-        async with trio.open_nursery() as nursery:
-            async def send_stuff_soon():
-                _ = await trio.sleep(10)
-                await webserver.broadcast({ "payload": "PAAAAAYLOOOAAAAD" })
-            nursery.start_soon(send_stuff_soon)
-            webserver.setup(
-                Path(__file__).parent.parent / 'overlay.html',
-                None,
-            )
-            webserver.set_initial_data({ "greeting": "Hello" })
-            await webserver.serve()
-    trio.run(main)

@@ -12,6 +12,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dynamic = ["dependencies"]
 
 [project.urls]
 Homepage = "https://github.com/amadanmath/data_commentator"
@@ -21,8 +22,11 @@ Issues = "https://github.com/amadanmath/data_commentator/issues"
 data-commentator = "data_commentator:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-requirements-txt"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
 
 [tool.basedpyright]
 reportAny = false

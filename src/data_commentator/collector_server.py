@@ -9,6 +9,7 @@ from .types import Payload, Window, Context
 from .priority import Priority
 from .utterance_server import UtteranceServer
 from .async_server import AsyncServer
+from .webserver import webserver
 
 
 class CollectorServer:
@@ -51,32 +52,46 @@ class CollectorServer:
             while True:
                 payload: Payload = await self.receive_channel.receive()
 
-                now = payload[self.ts_field]
-                if start_ts is None:
-                    start_ts = now
-
-                if self.interval is None or now >= start_ts + self.interval * sample_count:
-                    sample_count += 1
-                else:
-                    continue
-
                 if w:
-                    line = orjson.dumps(payload)
+                    line: bytes = orjson.dumps(payload)
                     _ = w.write(line + b"\n")
-
-                self.window.append(payload)
-                if self.payload_enhancer:
-                    payload = await self.payload_enhancer(payload, self.window)
-
-                predicted_priority: int
-                context: Context
-                if self.priority_predictor:
-                    predicted_priority, context = await self.priority_predictor(self.window) # XXX: Investigate intermittent error
+                meta = payload.get("meta")
+                if meta:
+                    initial_data: Payload = payload
+                    if self.payload_enhancer:
+                        meta_data = await self.payload_enhancer(initial_data, meta=meta)
+                    if meta == "start":
+                        webserver.set_initial_data(meta_data)
+                        self.window.clear()
+                    elif meta == "end":
+                        webserver.set_initial_data({})
+                        pass
+                    await webserver.broadcast(payload)
                 else:
-                    predicted_priority = 1
-                    context = None
-                if predicted_priority > self.current_priority.value:
-                    await self.utterance_server(self.window, predicted_priority, context)
+                    now = payload[self.ts_field]
+                    if start_ts is None:
+                        start_ts = now
+
+                    if self.interval is None or now >= start_ts + self.interval * sample_count:
+                        sample_count += 1
+                    else:
+                        continue
+
+                    if self.payload_enhancer:
+                        payload = await self.payload_enhancer(payload, self.window)
+                    self.window.append(payload)
+
+                    await webserver.broadcast(payload)
+
+                    predicted_priority: int
+                    context: Context
+                    if self.priority_predictor:
+                        predicted_priority, context = await self.priority_predictor(self.window) # XXX: Investigate intermittent error
+                    else:
+                        predicted_priority = 1
+                        context = None
+                    if predicted_priority > self.current_priority.value:
+                        await self.utterance_server(self.window, predicted_priority, context)
         finally:
             if w:
                 w.close()

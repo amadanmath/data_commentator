@@ -15,9 +15,13 @@ Speaker = Callable[[AudioSegment | None, str], Awaitable[None]]
 
 
 class PayloadEnhancer:
-    @abstractmethod
-    def __call__(self, payload: Payload, window: Window) -> Payload:
+    def start(self, payload: Payload) -> None:
         pass
+
+    @abstractmethod
+    def __call__(self, payload: Payload, window: Window | None, meta: str | None = None) -> Payload:
+        pass
+
 
 class PriorityPredictor:
     @abstractmethod

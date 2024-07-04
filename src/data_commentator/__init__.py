@@ -11,6 +11,8 @@ except ImportError:
         return None if not a else (a[0] if len(a) == 1 else a)
     setattr(builtins, "ic", ic)
 
+# TODO: move most of this into another file to avoid a circular import
+
 import argparse
 
 import trio
@@ -29,7 +31,7 @@ from .webserver import webserver
 
 
 async def run(args: argparse.Namespace) -> None:
-    data_channel: tuple[trio.MemorySendChannel[Payload], trio.MemoryReceiveChannel[Payload]] = trio.open_memory_channel(0)
+    data_channel: tuple[trio.MemorySendChannel[Payload], trio.MemoryReceiveChannel[Payload]] = trio.open_memory_channel(args.buffer_size)
 
     payload_enhancer: AsyncServer | None = load_and_instantiate_server(args.payload_enhancer)
     priority_predictor: AsyncServer | None = load_and_instantiate_server(args.priority_predictor)
