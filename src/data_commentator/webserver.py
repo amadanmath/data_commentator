@@ -4,11 +4,31 @@ from pathlib import Path
 import trio
 import orjson
 from quart_trio import QuartTrio
+from quart.json.provider import DefaultJSONProvider
 from quart_trio.wrappers.websocket import TrioWebsocket
-from quart import request, websocket
+from quart import request, websocket, redirect
 from typing import Any
+import numpy as np
 
 from .types import Payload
+
+
+
+def json_default(obj: Any):
+    if isinstance(obj, (np.integer, np.int_)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float_)):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):  
+        return obj.tolist()  # Convert numpy arrays to lists
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+class ORJSONProvider(DefaultJSONProvider):
+    def dumps(self, obj: Any, **kwargs: dict[str, Any]):
+        return orjson.dumps(obj, default=json_default).decode()
+
+    def loads(self, s: str | bytes, **kwargs: dict[str, Any]):
+        return orjson.loads(s)
 
 
 class Webserver:
@@ -50,7 +70,12 @@ class Webserver:
 logging.getLogger('hypercorn.access').disabled = True
 
 app = QuartTrio(__name__, static_url_path="")
+app.json = ORJSONProvider(app)
 
+
+@app.route('/', methods=['GET'])
+async def index() -> tuple[bytes, Any]:
+    return redirect("/index.html")
 
 @app.route('/data', methods=['POST'])
 async def data() -> tuple[bytes, Any]:

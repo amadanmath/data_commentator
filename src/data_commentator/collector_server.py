@@ -5,7 +5,7 @@ import gzip
 import trio
 import orjson
 
-from .types import Payload, Window, Context
+from .types import Payload, Window, History, Context
 from .priority import Priority
 from .utterance_server import UtteranceServer
 from .async_server import AsyncServer
@@ -19,10 +19,12 @@ class CollectorServer:
         window_size: int,
         ts_field: str,
         priority: Priority,
+        history: History,
         priority_predictor: AsyncServer | None = None,
         payload_enhancer: AsyncServer | None = None,
         output_file: Path | None = None,
         interval: float | None = None,
+        start: Payload | None = None,
     ) -> None:
         self.receive_channel = receive_channel
         self.utterance_server = utterance_server
@@ -33,6 +35,8 @@ class CollectorServer:
         self.ts_field = ts_field
         self.output_file = output_file
         self.interval = interval
+        self.history: History = history,
+        self.start = start
 
         self.window: Window = deque(maxlen=self.window_size)
         super().__init__()
@@ -48,9 +52,15 @@ class CollectorServer:
         else:
             w = None
 
+        start: Payload | None = self.start
+        payload: Payload
         try:
             while True:
-                payload: Payload = await self.receive_channel.receive()
+                if start:
+                    payload = start
+                    start = None
+                else:
+                    payload = await self.receive_channel.receive()
 
                 if w:
                     line: bytes = orjson.dumps(payload)
@@ -79,6 +89,8 @@ class CollectorServer:
 
                     if self.payload_enhancer:
                         payload = await self.payload_enhancer(payload, self.window)
+                        if not payload:
+                            continue
                     self.window.append(payload)
 
                     await webserver.broadcast(payload)
@@ -86,12 +98,12 @@ class CollectorServer:
                     predicted_priority: int
                     context: Context
                     if self.priority_predictor:
-                        predicted_priority, context = await self.priority_predictor(self.window) # XXX: Investigate intermittent error
+                        predicted_priority, context = await self.priority_predictor(self.window, self.history) # XXX: Investigate intermittent error
                     else:
                         predicted_priority = 1
                         context = None
                     if predicted_priority > self.current_priority.value:
-                        await self.utterance_server(self.window, predicted_priority, context)
+                        await self.utterance_server(self.window, self.history, predicted_priority, context)
         finally:
             if w:
                 w.close()

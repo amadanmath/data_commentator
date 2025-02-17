@@ -2,8 +2,10 @@ from typing import Any
 
 import trio
 from pydub.audio_segment import AudioSegment
+import httpx
+import sys
 
-from .types import Window, Context
+from .types import Window, History, Context
 from .async_server import AsyncServer
 from .synthesizer import Synthesizer
 from .speaker import Speaker
@@ -17,18 +19,20 @@ class UtteranceServer:
             synthesizer: Synthesizer,
             speaker: Speaker,
             priority: Priority,
+            history: History,
     ) -> None:
         self.predictor = predictor
         self.synthesizer = synthesizer
         self.speaker = speaker
         self.priority = priority
+        self.history = history
 
         self.nursery = None
         self.cancel_scope = None
         self.task_id = 0
         super().__init__()
 
-    async def __call__(self, window: Window, priority: int, context: Context) -> None:
+    async def __call__(self, window: Window, history: History, priority: int, context: Context) -> None:
         task_id = self.task_id
         self.priority.set(priority, task_id, context)
         self.task_id += 1
@@ -49,11 +53,16 @@ class UtteranceServer:
     async def predict_text(self, window: Window, task_id: int, *, task_status: trio.TaskStatus[Any]=trio.TASK_STATUS_IGNORED):
         with trio.CancelScope() as scope:
             task_status.started(scope)
-            text = await self.predictor(window, self.priority.context)
+            text = await self.predictor(window, self.history, self.priority.context)
             if text:
+                self.history.append(text)
                 seg: AudioSegment | None = None
                 if self.synthesizer:
-                    seg = await self.synthesizer(text)
+                    try:
+                        seg = await self.synthesizer(text)
+                    except httpx.ConnectError as x:
+                        print(f"Cannot connect to the synthesizer: {x}", file=sys.stderr)
+                        self.synthesizer = None
 
                 # timestamp = window[-1]["timestamp"]; ic(timestamp, text)
                 try:

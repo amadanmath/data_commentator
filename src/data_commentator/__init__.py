@@ -14,6 +14,7 @@ except ImportError:
 # TODO: move most of this into another file to avoid a circular import
 
 import argparse
+from collections import deque
 
 import trio
 from exceptiongroup import BaseExceptionGroup, catch
@@ -43,17 +44,26 @@ async def run(args: argparse.Namespace) -> None:
         raise RuntimeError("No predictor")
 
     priority = Priority()
-    utterance_server = UtteranceServer(predictor, synthesizer, speaker, priority)
+    history = deque(maxlen=args.history)
+    utterance_server = UtteranceServer(
+        predictor,
+        synthesizer, 
+        speaker, 
+        priority, 
+        history,
+    )
     collector_server = CollectorServer(
         receive_channel=data_channel[1],
         utterance_server=utterance_server,
         window_size=args.window,
+        history=history,
         ts_field=args.ts_field,
         priority=priority,
         priority_predictor=priority_predictor,
         payload_enhancer=payload_enhancer,
         output_file=args.output,
         interval=args.interval,
+        start=args.start,
     )
 
     if args.input:

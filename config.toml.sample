@@ -1,0 +1,61 @@
+# bind = "0.0.0.0"
+# port = 5007
+# input = None
+# output = None
+# window = 100
+# history = 10
+# interval = None
+# ts_field = "timestamp"
+
+[payload_enhancer]
+name = "data_commentator_assetto_corsa.payload_enhancer.AssettoCorsaPayloadEnhancer"
+# kind = "process"
+kind = "thread"
+kwargs.tracks_path = "data/tracks"
+
+[priority_predictor]
+name = "data_commentator_assetto_corsa.priority_predictor.AssettoCorsaPriorityPredictor"
+kwargs.rules = "/Users/amadan/work/people/ishigaki/AssettoCorsaDataStreamer/data_receiver_app/rules-ja.yml"
+# kind = "process"
+
+[predictor]
+name = "data_commentator_assetto_corsa.predictor.AssettoCorsaPredictor"
+# kind = "process"
+kwargs.config_file = "/Users/amadan/work/people/ishigaki/AssettoCorsaDataStreamer/data_receiver_app/data/trained_models/wo_label_features_batch_100_lr_0.00001_emb_768_save_all/args.txt"
+kwargs.trust_remote_code = true
+kwargs.differentiate = 0.8
+
+[synthesizer]
+name = "data_commentator.synthesizer.openjtalk.OpenJTalk"
+# kwargs.run_marine = true
+# kwargs.half_tone = 0.0
+# kwargs.speed = 1.0
+
+# name = "data_commentator.synthesizer.piper.Piper"
+# kwargs.voice = "data/tts/piper/en_GB-cori-high.onnx"
+# # speaker =
+# kwargs.speed = 1.0
+
+# name = "data_commentator.synthesizer.marytts.MaryTTS"
+# kwargs.base_uri = "http://localhost:59125"
+# kwargs.voice = 1
+# kwargs.locale = "en"
+# kwargs.speed = 1.0
+
+# name = "data_commentator.synthesizer.voicevox.Voicevox"
+# kwargs.base_uri = "http://localhost:50021"
+# kwargs.voice = 1
+# kwargs.enable_interrogative_upspeak = false
+# kwargs.speed = 1.0
+
+[speaker]
+# name = "data_commentator.speaker.simpleaudio.SimpleAudio"
+# kwargs.console = true
+
+name = "data_commentator.speaker.web_overlay.WebOverlay"
+
+[webserver]
+bind = "0.0.0.0"
+port = 5007
+static = "/Users/amadan/work/people/ishigaki/commentator/data_commentator_assetto_corsa//overlay"
+buffer_size = 10

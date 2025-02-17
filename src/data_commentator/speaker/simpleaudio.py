@@ -6,7 +6,12 @@ from . import Speaker
 
 
 class SimpleAudio(Speaker):
+    def __init__(self, console: bool = False):
+        self.console = console
+
     async def __call__(self, seg: AudioSegment | None, text: str) -> None:
+        if self.console:
+            print(text)
         if seg:
             playback = play_buffer(
                 seg.raw_data,
@@ -14,22 +19,11 @@ class SimpleAudio(Speaker):
                 bytes_per_sample=seg.sample_width,
                 sample_rate=seg.frame_rate
             )
-            while playback.is_playing():
-                await trio.sleep(0.05)
-
-
-if __name__ == "__main__":
-    from ..synthesizer.voicevox import Voicevox
-
-    async def main():
-        voicevox = Voicevox(speed=1.0)
-        speaker = SimpleAudio()
-        text = "こんにちは！これはタイムアウトのテストです。"
-        seg = await voicevox(text)
-        with trio.move_on_after(2):
-            _ = await speaker(seg, text)
-        text = "つづきます"
-        seg = await voicevox(text)
-        _ = await speaker(seg, text)
-
-    trio.run(main)
+            try:
+                while playback.is_playing():
+                    await trio.sleep(0.05)
+            except trio.Cancelled:
+                if playback.is_playing():
+                    playback.stop()
+                    playback.wait_done()
+                raise

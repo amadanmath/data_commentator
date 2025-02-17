@@ -2,6 +2,7 @@ import base64
 import wave
 from io import BytesIO
 
+import trio
 from pydub.audio_segment import AudioSegment
 try:
     import audioop
@@ -43,3 +44,4 @@ class WebOverlay(Speaker):
             data["speech"] = base64.b64encode(speech_data).decode()
 
         await webserver.broadcast(data)
+        await trio.sleep(len(seg) / 1000.0)

@@ -1,6 +1,8 @@
+from pandas import DataFrame
+
 from .types import (
     Predictor, PayloadEnhancer, PriorityPredictor,
-    Window, Payload, Context
+    Window, History, Payload, Context
 )
 
 
@@ -9,7 +11,7 @@ class DummyPayloadEnhancer(PayloadEnhancer):
         return payload
 
 class DummyPriorityPredictor(PriorityPredictor):
-    def __call__(self, _: Window) -> tuple[int, Context]:
+    def process(self, data: DataFrame, history: History) -> tuple[int, Context]:
         return 1, None
 
 class DummyPredictor(Predictor):
@@ -17,7 +19,7 @@ class DummyPredictor(Predictor):
         self.text = text
         super().__init__()
 
-    def __call__(self, window: Window, context: Context) -> str:
+    def __call__(self, window: Window, history: History, context: Context) -> str:
         _ = window
         _ = context
         return self.text

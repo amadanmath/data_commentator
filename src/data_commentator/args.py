@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any, Callable
+import orjson
 
 import tomli
 
@@ -24,6 +25,8 @@ def parse_args(override_config: Callable[[dict[str, Any]], None] | None = None) 
     _ = parser.add_argument('-i', '--input', type=Path, default=config.get('input'), help='JSONL path to read')
     _ = parser.add_argument('-o', '--output', type=Path, default=config.get('output'), help='JSONL path to write')
     _ = parser.add_argument('-w', '--window', type=int, default=config.get('window', 100), help='Size of the data window')
+    _ = parser.add_argument('-H', '--history', type=int, help='Size of the previous output history')
+    _ = parser.add_argument('-S', '--start', type=str, help='start JSON record')
     _ = parser.add_argument('-n', '--interval', type=float, default=config.get('interval', None), help='Interval between samples')
     _ = parser.add_argument('-t', '--ts-field', type=str, default=config.get('ts_field', 'timestamp'), help='Payload field carrying timestamp')
     _ = parser.add_argument('--buffer-size', type=int, default=webserver_config.get('buffer_size', 0), help='Payload buffer size')
@@ -39,5 +42,8 @@ def parse_args(override_config: Callable[[dict[str, Any]], None] | None = None) 
     args.speaker = config.get('speaker', {
         "name": "data_commentator.speaker.simpleaudio.SimpleAudio",
     })
+    if args.start:
+        args.start = orjson.loads(args.start)
+        args.start["meta"] = "start"
 
     return args

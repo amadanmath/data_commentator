@@ -4,10 +4,12 @@ from collections import deque
 from collections.abc import Awaitable
 
 from pydub.audio_segment import AudioSegment
+from pandas import DataFrame
 
 
 Payload = dict[str, Any]
 Window = deque[Payload]
+History = deque[Any]
 
 Context = Any
 Synthesizer = Callable[[str], Awaitable[AudioSegment | None]]
@@ -18,17 +20,21 @@ class PayloadEnhancer:
     def start(self, payload: Payload) -> None:
         pass
 
-    @abstractmethod
-    def __call__(self, payload: Payload, window: Window | None, meta: str | None = None) -> Payload:
+    def __call__(self, payload: Payload, window: Window | None, meta: str | None = None) -> Payload | None:
         pass
 
 
 class PriorityPredictor:
     @abstractmethod
-    def __call__(self, window: Window) -> tuple[int, Context]:
+    def process(self, data: DataFrame, history: History) -> tuple[int, Context]:
         pass
+
+    def __call__(self, window: Window, history: History) -> tuple[int, Context]:
+        data: DataFrame = DataFrame(window).to_dict(orient='list')
+        return self.process(data, history)
+
 
 class Predictor:
     @abstractmethod
-    def __call__(self, window: Window, context: Context) -> str:
+    def __call__(self, window: Window, history: History, context: Context) -> str:
         pass
