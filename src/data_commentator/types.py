@@ -20,7 +20,7 @@ class PayloadEnhancer:
     def start(self, payload: Payload) -> None:
         pass
 
-    def __call__(self, payload: Payload, window: Window | None, meta: str | None = None) -> Payload | None:
+    def __call__(self, payload: Payload, window: Window | None, long_context: Context, meta: str | None = None) -> Payload | None:
         pass
 
 
@@ -29,12 +29,12 @@ class PriorityPredictor:
     def process(self, data: DataFrame, history: History) -> tuple[int, Context]:
         pass
 
-    def __call__(self, window: Window, history: History) -> tuple[int, Context]:
-        data: DataFrame = DataFrame(window).to_dict(orient='list')
-        return self.process(data, history)
+    def __call__(self, window: Window, history: History, long_context: Context) -> tuple[int, Context]:
+        data: dict[str, list] = DataFrame(window).to_dict(orient='list')
+        return self.process(data, history, long_context)
 
 
 class Predictor:
     @abstractmethod
-    def __call__(self, window: Window, history: History, context: Context) -> str:
+    def __call__(self, window: Window, history: History, context: Context, long_context: Context) -> str:
         pass

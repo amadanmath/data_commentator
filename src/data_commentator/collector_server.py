@@ -37,6 +37,7 @@ class CollectorServer:
         self.interval = interval
         self.history: History = history,
         self.start = start
+        self.long_context = {}
 
         self.window: Window = deque(maxlen=self.window_size)
         super().__init__()
@@ -69,7 +70,7 @@ class CollectorServer:
                 if meta:
                     initial_data: Payload = payload
                     if self.payload_enhancer:
-                        meta_data = await self.payload_enhancer(initial_data, meta=meta)
+                        meta_data = await self.payload_enhancer(initial_data, self.long_context, meta=meta)
                     if meta == "start":
                         webserver.set_initial_data(meta_data)
                         self.window.clear()
@@ -88,7 +89,7 @@ class CollectorServer:
                         continue
 
                     if self.payload_enhancer:
-                        payload = await self.payload_enhancer(payload, self.window)
+                        payload = await self.payload_enhancer(payload, self.long_context, self.window)
                         if not payload:
                             continue
                     self.window.append(payload)
@@ -98,12 +99,12 @@ class CollectorServer:
                     predicted_priority: int
                     context: Context
                     if self.priority_predictor:
-                        predicted_priority, context = await self.priority_predictor(self.window, self.history) # XXX: Investigate intermittent error
+                        predicted_priority, context = await self.priority_predictor(self.window, self.history, self.long_context) # XXX: Investigate intermittent error
                     else:
                         predicted_priority = 1
                         context = None
                     if predicted_priority > self.current_priority.value:
-                        await self.utterance_server(self.window, self.history, predicted_priority, context)
+                        await self.utterance_server(self.window, self.history, predicted_priority, context, self.long_context)
         finally:
             if w:
                 w.close()

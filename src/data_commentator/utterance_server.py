@@ -32,9 +32,9 @@ class UtteranceServer:
         self.task_id = 0
         super().__init__()
 
-    async def __call__(self, window: Window, history: History, priority: int, context: Context) -> None:
+    async def __call__(self, window: Window, history: History, priority: int, context: Context, long_context: Context) -> None:
         task_id = self.task_id
-        self.priority.set(priority, task_id, context)
+        self.priority.set(priority, task_id, context, long_context)
         self.task_id += 1
         if self.nursery:
             if self.cancel_scope:
@@ -53,7 +53,7 @@ class UtteranceServer:
     async def predict_text(self, window: Window, task_id: int, *, task_status: trio.TaskStatus[Any]=trio.TASK_STATUS_IGNORED):
         with trio.CancelScope() as scope:
             task_status.started(scope)
-            text = await self.predictor(window, self.history, self.priority.context)
+            text = await self.predictor(window, self.history, self.priority.context, self.priority.long_context)
             if text:
                 self.history.append(text)
                 seg: AudioSegment | None = None
