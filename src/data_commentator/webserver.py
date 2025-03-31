@@ -7,6 +7,7 @@ from quart_trio import QuartTrio
 from quart.json.provider import DefaultJSONProvider
 from quart_trio.wrappers.websocket import TrioWebsocket
 from quart import request, websocket, redirect
+from werkzeug.http import parse_options_header
 from typing import Any
 import numpy as np
 
@@ -79,8 +80,32 @@ async def index() -> tuple[bytes, Any]:
 
 @app.route('/data', methods=['POST'])
 async def data() -> tuple[bytes, Any]:
-    body: bytes = await request.get_data()
-    payloads: list[Payload] = [orjson.loads(line) for line in body.strip().split(b'\n')]
+    content_type: str | None
+    content_type, _ = parse_options_header(request.headers.get("Content-Type"))
+    body: bytes
+    payloads: list[Payload]
+    ic(content_type)
+    if content_type == 'application/json':
+        body = await request.get_data()
+        payloads = [orjson.loads(body)]
+    if content_type in ('application/jsonl', 'application/x-ndjson'):
+        body = await request.get_data()
+        payloads = [orjson.loads(line) for line in body.strip().split(b'\n')]
+    elif content_type == 'application/octet-stream':
+        body = await request.get_data()
+        timestamp = int(request.headers['X-Timestamp'])
+        payloads = [{ "timestamp": timestamp, "binary": body }]
+    elif content_type in ('application/x-www-form-urlencoded', 'multipart/form-data'):
+        form = await request.form
+        files = await request.files
+        form_data = {key: form.get(key) for key in form.keys()}
+        file_data = {key: files.get(key) for key in files.keys()}
+        payload: Payload = { **form_data, **file_data }
+        payload['timestamp'] = int(payload['timestamp'])
+        payloads = [payload]
+    else:
+        return b'', 415 # Unsupported Media Type
+
     ignored_payloads = 0
     if webserver.data_send_channel:
         for payload in payloads:
