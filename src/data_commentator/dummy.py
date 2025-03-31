@@ -7,7 +7,7 @@ from .types import (
 
 
 class DummyPayloadEnhancer(PayloadEnhancer):
-    def __call__(self, payload: Payload, window: Window, long_context: Payload, meta: str | None) -> Payload | None:
+    def __call__(self, payload: Payload, long_context: Payload, window: Window | None, meta: str | None) -> Payload | None:
         _ = meta
         _ = long_context
         return payload

@@ -31,7 +31,7 @@ def load(klass: str) -> Any:
         raise ImportError(f"cannot import name '{klass_name}' from '{module_name}'")
 
 def load_and_instantiate(desc: dict[str, Any] | None) -> Any:
-    if not desc:
+    if desc is None:
         return None
     name = desc.pop("name")
     klass = load(name)

@@ -70,7 +70,7 @@ class CollectorServer:
                 if meta:
                     initial_data: Payload = payload
                     if self.payload_enhancer:
-                        meta_data = await self.payload_enhancer(initial_data, self.long_context, meta=meta)
+                        meta_data = await self.payload_enhancer(initial_data, self.long_context, None, meta)
                     if meta == "start":
                         webserver.set_initial_data(meta_data)
                         self.window.clear()
@@ -89,7 +89,7 @@ class CollectorServer:
                         continue
 
                     if self.payload_enhancer:
-                        payload = await self.payload_enhancer(payload, self.long_context, self.window)
+                        payload = await self.payload_enhancer(payload, self.long_context, self.window, None)
                         if not payload:
                             continue
                     self.window.append(payload)
